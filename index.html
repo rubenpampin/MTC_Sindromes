@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MTC RDP - Base Clínica Completa</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body { background-color: #050810; color: #e2e8f0; font-family: 'Plus Jakarta Sans', sans-serif; }
+        .glass-card { background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.08); }
+        .organ-btn { transition: all 0.2s; border: 1px solid rgba(255,255,255,0.1); cursor: pointer; font-size: 0.7rem; }
+        .active-filter { border-color: #10b981 !important; background: rgba(16, 185, 129, 0.2); font-weight: 800; }
+        .interact-tag { position: relative; cursor: help; font-weight: bold; border-bottom: 1px dashed; display: inline-block; }
+        .tag-plant { color: #34d399; border-color: #059669; }
+        .tag-point { color: #60a5fa; border-color: #2563eb; }
+        .tooltip {
+            visibility: hidden; position: absolute; bottom: 135%; left: 50%; transform: translateX(-50%);
+            background: #1e293b; color: #f1f5f9; padding: 12px; border-radius: 8px; width: 260px;
+            font-size: 0.75rem; line-height: 1.4; z-index: 100; box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            border: 1px solid currentColor; opacity: 0; transition: opacity 0.2s; pointer-events: none;
+            text-align: left; font-weight: normal;
+        }
+        .interact-tag:hover .tooltip { visibility: visible; opacity: 1; }
+    </style>
+</head>
+<body class="p-4 md:p-8 min-h-screen">
+    <div class="max-w-[1550px] mx-auto">
+        <header class="mb-8 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div>
+                <h1 class="text-4xl font-extrabold text-white">MTCH <span class="text-emerald-400">CLINICA Ruben Pampin</span></h1>
+                <p class="text-slate-400">Diagnóstico Detallado | 44 Síndromes </p>
+            </div>
+            <div id="resultCount" class="bg-emerald-500/10 text-emerald-400 px-4 py-2 rounded-lg border border-emerald-500/20 font-bold uppercase">44 Síndromes</div>
+        </header>
+
+        <div class="mb-6 flex flex-wrap gap-2 justify-center md:justify-start">
+            <button onclick="setFilter('Todos')" class="organ-btn px-4 py-2 rounded-xl bg-slate-800 text-white uppercase active-filter">Todos</button>
+            <button onclick="setFilter('Bazo')" class="organ-btn px-4 py-2 rounded-xl bg-yellow-600/20 text-yellow-400 uppercase">Tierra</button>
+            <button onclick="setFilter('Hígado')" class="organ-btn px-4 py-2 rounded-xl bg-emerald-700/20 text-emerald-400 uppercase">Madera</button>
+            <button onclick="setFilter('Corazón')" class="organ-btn px-4 py-2 rounded-xl bg-red-700/20 text-red-400 uppercase">Fuego</button>
+            <button onclick="setFilter('Pulmón')" class="organ-btn px-4 py-2 rounded-xl bg-slate-400/20 text-slate-300 uppercase">Metal</button>
+            <button onclick="setFilter('Riñón')" class="organ-btn px-4 py-2 rounded-xl bg-blue-800/20 text-blue-400 uppercase">Agua</button>
+        </div>
+
+        <div class="mb-10 sticky top-4 z-50">
+            <input type="text" id="searchInput" onkeyup="renderTable()" placeholder="Busca síntomas detallados (ej: lengua hinchada, pulso fino, prolapso)..." class="w-full p-5 rounded-2xl bg-slate-900 border border-slate-700 outline-none focus:border-emerald-500 text-white text-xl shadow-2xl transition-all">
+        </div>
+
+        <div class="glass-card rounded-3xl overflow-hidden shadow-2xl border border-slate-800">
+            <div class="overflow-x-auto max-h-[75vh]">
+                <table class="w-full text-left border-collapse">
+                    <thead class="bg-slate-900/95 sticky top-0 z-10">
+                        <tr class="text-slate-500 text-[10px] uppercase tracking-[0.2em] border-b border-slate-800">
+                            <th class="p-5 font-black">Sistema</th>
+                            <th class="p-5 font-black">Síndrome Energético</th>
+                            <th class="p-5 font-black">Diagnóstico Detallado (Síntomas, Lengua, Pulso)</th>
+                            <th class="p-5 font-black">Fitoterapia</th>
+                            <th class="p-5 border-l border-slate-800 text-center text-blue-400">Acupuntura</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody" class="divide-y divide-slate-800/50"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const pointDict = {
+            "V13": "Feishu: Back-Shu de Pulmón. Tonifica el Qi y calma la tos.", "V15": "Xinshu: Back-Shu de Corazón. Calma el Shen y nutre sangre.", "V17": "Geshu: Maestro de Sangre. Nutre y mueve la sangre.", "V18": "Ganshu: Back-Shu de Hígado. Nutre sangre y drena Qi.", "V20": "Pishu: Back-Shu de Bazo. Tonifica transporte y transformación.", "V21": "Weishu: Back-Shu de Estómago. Regula Jiao Medio.", "V22": "Sanjiaoshu: Back-Shu de San Jiao. Regula líquidos.", "V23": "Shenshu: Back-Shu de Riñón. Tonifica Yang y Esencia.", "V27": "Xiaochangshu: Back-Shu ID.", "V28": "Pangguangshu: Back-Shu Vejiga.", "V52": "Zhishi: Tonifica el Riñón y la voluntad (Zhi).", "VB20": "Fengchi: Elimina viento y aclara la vista.", "VB34": "Yanglingquan: Maestro de Tendones. Mueve Qi de Hígado.", "VB24": "Riyue: Mu de Vesícula Biliar.", "VB40": "Qiuxu: Punto Yuan de VB. Mueve Qi bloqueado.", "VC12": "Zhongwan: Mu de Estómago. Armoniza digestión.", "VC4": "Guanyuan: Mu de ID. Tonifica Qi Original.", "VC6": "Qihai: Mar del Qi. Tonifica energía general.", "VC9": "Shuifen: Regula líquidos y edemas.", "VC3": "Zhongji: Mu de Vejiga. Regula micción.", "VC13": "Shangwan: Regula estómago y somete Qi rebelde.", "VC14": "Juque: Mu de Corazón. Calma ansiedad.", "VC17": "Shanzhong: Maestro del Qi. Abre el pecho.", "E36": "Zusanli: Fortalece Bazo/Estómago y Qi.", "B6": "Sanyinjiao: Nutre Sangre y Yin.", "H3": "Taichong: Mueve Qi de Hígado bloqueado.", "R3": "Taixi: Punto Yuan de Riñón. Nutre Yin/Yang.", "R7": "Fuliu: Tonifica Yang de Riñón y regula sudor.", "IG4": "Hegu: Elimina viento y calma dolor.", "P7": "Lieque: Difunde Qi de Pulmón.", "DU4": "Mingmen: Puerta de la Vida. Tonifica Yang de Riñón.", "VG20": "Baihui: Eleva el Qi y aclara mente."
+        };
+
+        const plantDict = {
+            "Astrágalo": "Huang Qi: Tonifica Qi de Bazo/Pulmón. Eleva el Yang.", "Ginseng": "Ren Shen: Tónico máximo del Yuan Qi.", "Canela": "Rou Gui: Calienta Yang profundo.", "Jengibre": "Sheng Jiang: Tibia centro, dispersa frío.", "Diente de león": "Pu Gong Ying: Limpia fuego de Hígado.", "Regaliz": "Gan Cao: Armoniza y tonifica Qi."
+        };
+
+        const rawData = [
+            // BAZO
+            { o: "Bazo", s: "Insuficiencia de Qi de Bazo", m: "Falta de apetito, distensión abdominal postprandial marcada, fatiga crónica, debilidad de las cuatro extremidades, deposiciones blandas o pastosas, náuseas recurrentes, plenitud en el pecho. Lengua pálida con marcas dentales laterales. Pulso vacío (Xu).", f: "Astrágalo (raíz), Regaliz, Cardo Mariano, Cúrcuma, Moringa, Ajo.", a: "VC12, E36, B3, B6, V20, V21" },
+            { o: "Bazo", s: "Insuficiencia de Yang de Bazo", m: "Falta de apetito, distensión tras comer, fatiga profunda, sensación de frío constante, extremidades frías, edemas, deposiciones líquidas. Lengua pálida, hinchada y muy húmeda (saburra blanca). Pulso profundo (Chen) y débil (Ruo).", f: "Canela (rama), Jengibre (raíz), Romero, Clavo, Fenogreco, Comino.", a: "VC12, E36, B3, B6, V20, V21, B9, VC9, E28, V22" },
+            { o: "Bazo", s: "Hundimiento de Qi de Bazo", m: "Sensación de pesadez o caída en el bajo abdomen, prolapsos (estómago, útero, ano), micciones urgentes o frecuentes pero escasas, hemorroides, varices importantes. Lengua pálida. Pulso débil y fino.", f: "Rhodiola, Astrágalo.", a: "VG20, VC12, E36, B3, B6, V20, V21, VG1" },
+            { o: "Bazo", s: "El Bazo no controla la Sangre", m: "Equimosis fáciles (moretones), púrpura, sangre en orina o heces, menorragia (reglas abundantes), respiración corta, fatiga extrema, cara pálida. Lengua pálida. Pulso fino o rugoso (Se).", f: "Azafrán, Bolsa de Pastor, Angélica Sinensis, Salvia.", a: "VC12, E36, B10, V17, B1" },
+            { o: "Bazo", s: "Frío-Humedad invade el Bazo", m: "Plenitud epigástrica y opresión torácica, pesadez excesiva de cabeza y cuerpo, ausencia de sed, heces pegajosas, leucorrea blanca y espesa. Lengua pálida con saburra blanca y grasa. Pulso lento y resbaladizo.", f: "Clavo, Mandarino (piel).", a: "B3, B6, VC12, E8" },
+            { o: "Bazo", s: "Calor-Humedad invade el Bazo", m: "Congestión abdominal, pesadez corporal, fiebre que no baja, sed sin deseos de beber, heces nauseabundas, quemazón anal, orina oscura y escasa. Lengua roja con saburra amarilla grasa. Pulso rápido y resbaladizo.", f: "Calabacera, Ruibarbo.", a: "B9, B6, VG9, V20, VB34" },
+            // ESTÓMAGO
+            { o: "Estómago", s: "Insuficiencia de Qi de Estómago", m: "Molestias sordas en epigastrio, falta de apetito, fatiga matinal, miembros débiles, heces blandas. Lengua pálida. Pulso vacío en posición derecha (Cun).", f: "Fenogreco, Astrágalo, Comino.", a: "E36, VC12, V21, VC6" },
+            { o: "Estómago", s: "Insuficiencia y Frío de Estómago", m: "Dolor epigástrico severo que mejora con el calor o la presión, preferencia por bebidas calientes, vómitos de líquidos claros, miembros fríos. Lengua pálida y húmeda. Pulso profundo, lento y débil.", f: "Hinojo, Jengibre, Sándalo.", a: "E36, VC12, V21, V20, VC6" },
+            { o: "Estómago", s: "Insuficiencia de Yin de Estómago", m: "Boca y garganta muy secas, estreñimiento severo (heces secas), sed con deseo de sorbos pequeños, plenitud rápida tras comer, sensación de hambre pero sin ganas de ingerir. Lengua roja, seca y sin saburra en el centro. Pulso fino y rápido.", f: "Granada, Ginseng, Ciruelo, Sangre de Drago.", a: "E36, VC12, B3, B6, E44" },
+            { o: "Estómago", s: "Fuego de Estómago", m: "Ardor epigástrico punzante, sed intensa de líquidos fríos, bulimia (hambre voraz), encías hinchadas y sangrantes, mal aliento (halitosis), estreñimiento. Lengua roja con saburra amarilla seca. Pulso rápido y lleno (Shi).", f: "Calabacera, Aloe Vera, Regaliz, Congorosa.", a: "E21, VC13, B6, E44, E45" },
+            { o: "Estómago", s: "Invasión de Frío en Estómago", m: "Dolor súbito y agudo en epigastrio, vómitos súbitos de líquidos claros, agravamiento con el frío y alivio con el calor. Lengua con saburra blanca y gruesa. Pulso de cuerda (Xian) y lento.", f: "Anís Estrellado, Cedrón, Nuez Moscada.", a: "E21, VC13, B4, E34" },
+            // HÍGADO
+            { o: "Hígado", s: "Estancamiento de Qi de Hígado", m: "Distensión y dolor en hipocondrios y pecho, suspiros frecuentes, nudo en la garganta (globo histérico), humor muy cambiante, náuseas, reglas dolorosas e irregulares. Lengua con bordes rojos. Pulso de cuerda (Xian).", f: "Alcachofa, diente de león, boldo, cardo mariano.", a: "VB34, H3, H13, H14, TR6, MC6" },
+            { o: "Hígado", s: "Estasis de Xue (Sangre)", m: "Dolor fijo, punzante y localizado en hipocondrio o bajo vientre, masas abdominales, reglas con coágulos oscuros, piel seca. Lengua púrpura con puntos de estasis. Pulso rugoso (Se) o de cuerda.", f: "Melocotón (hueso), salvia, bolsa de pastor, ulmaria.", a: "V17, V18, B6, H3" },
+            { o: "Hígado", s: "Fuego de Hígado", m: "Irritabilidad extrema, accesos de cólera, ojos rojos y secos, sabor amargo persistente, cefaleas intensas laterales, insomnio, orina oscura. Lengua roja con bordes más rojos y saburra amarilla. Pulso rápido, de cuerda y lleno.", f: "Pasiflora, escutelaria, diente de león.", a: "H2, H3, VB20" },
+            { o: "Hígado", s: "Ascenso de Yang de Hígado", m: "Cefaleas en el vértex o sienes, mareos, acúfenos (pitidos), visión borrosa, cara roja, irritabilidad, rodillas débiles. Lengua roja sin saburra. Pulso de cuerda y fino.", f: "Melisa, lavanda, pasionaria, valeriana.", a: "H3, VB20, R3" },
+            { o: "Hígado", s: "Insuficiencia de Sangre de Hígado", m: "Visión borrosa, mareos al levantarse, entumecimiento de manos y pies, uñas quebradizas y pálidas, amenorrea o reglas escasas. Lengua pálida y delgada. Pulso fino (Xi).", f: "Angélica, salvia, ortiga, fenogreco.", a: "V18, V20, V23, B6" },
+            { o: "Hígado", s: "Estancamiento de Frío en el Canal", m: "Dolor en hipogastrio que irradia a genitales, contracción del escroto o labios mayores, alivio inmediato con calor. Lengua pálida con saburra blanca húmeda. Pulso profundo, de cuerda y lento.", f: "Canela, jengibre, fenogreco.", a: "H1, H5, VC3" },
+            // VESÍCULA BILIAR
+            { o: "Vesícula Biliar", s: "Calor-Humedad en VB", m: "Dolor hipocondrial sordo, náuseas, ictericia (piel/ojos amarillos), orina muy oscura, sabor amargo, falta de apetito. Lengua roja con saburra amarilla grasa lateral. Pulso rápido y resbaladizo.", f: "Diente de león, cardo mariano, cúrcuma, genciana.", a: "VB34, VB24, H14" },
+            { o: "Vesícula Biliar", s: "Insuficiencia de VB", m: "Mareos, visión borrosa, falta de iniciativa, timidez, suspiros frecuentes, sueños perturbados. Lengua pálida. Pulso fino.", f: "Romero.", a: "VB40" },
+            // CORAZÓN
+            { o: "Corazón", s: "Insuficiencia de Qi de Corazón", m: "Palpitaciones al esfuerzo mínimo, cansancio, sudoración espontánea diurna, respiración corta, cara pálida. Lengua pálida. Pulso vacío o débil.", f: "Ginseng.", a: "C7, MC6, VC14, V15" },
+            { o: "Corazón", s: "Insuficiencia de Yang de Corazón", m: "Palpitaciones, manos frías, sensación de frío en el pecho, cara pálida y brillante, falta de energía. Lengua pálida e hinchada. Pulso profundo y débil.", f: "Canela.", a: "C7, V15, V23, VC14" },
+            { o: "Corazón", s: "Insuficiencia de Sangre de Corazón", m: "Palpitaciones, insomnio de conciliación, mala memoria, ansiedad, mareos, labios y uñas pálidos. Lengua pálida y delgada. Pulso fino.", f: "Angélica, Salvia, Esquisandra.", a: "C7, V15, V17, V20, MC6" },
+            { o: "Corazón", s: "Insuficiencia de Yin de Corazón", m: "Palpitaciones, insomnio, sudor nocturno, calor en las 5 palmas, boca y garganta secas, agitación. Lengua roja sin saburra. Pulso fino y rápido.", f: "Esquisandra, Morera.", a: "C7, MC6, R6, B6, V15" },
+            { o: "Corazón", s: "Fuego de Corazón", m: "Sed de bebidas frías, úlceras dolorosas en la lengua, agitación mental severa, orina oscura o con sangre, cara muy roja. Lengua roja con punta roja y saburra amarilla. Pulso rápido y lleno.", f: "Loto, Escutelaria.", a: "C7, C8, C9, MC6" },
+            { o: "Corazón", s: "Estancamiento de Sangre de C.", m: "Dolor punzante y fijo en el pecho que irradia al brazo izquierdo, labios y uñas púrpura, palpitaciones. Lengua púrpura. Pulso rugoso o anudado (Jie).", f: "Salvia, Milenrama.", a: "C7, MC6, V15, V17, B10" },
+            // INTESTINO DELGADO
+            { o: "Intestino Delgado", s: "Calor en Intestino Delgado", m: "Dolor abdominal, sed, micción frecuente con quemazón y dolor, orina escasa y oscura. Lengua roja con saburra amarilla. Pulso rápido.", f: "Diente de León, Llantén.", a: "ID2, ID5, ID8, V27" },
+            { o: "Intestino Delgado", s: "Dolor por Qi de ID", m: "Dolor abdominal intenso (tipo cólico) que irradia a los testículos, borborigmos fuertes, gases. Lengua con saburra blanca. Pulso de cuerda.", f: "Hinojo, Menta.", a: "ID3, H3, VB34, VC6" },
+            { o: "Intestino Delgado", s: "Parásitos Intestinales", m: "Dolor abdominal vago, mal aliento, picazón nasal o anal, deseo de comer sustancias extrañas. Diagnóstico por observación de parásitos.", f: "Calabacera, Paico.", a: "ID2, V27, B4" },
+            // RIÑÓN
+            { o: "Riñón", s: "Insuficiencia de Yang de Riñón", m: "Dolor lumbar crónico, sensación de frío en la espalda, rodillas frías y débiles, orina clara y muy abundante, impotencia, edema en tobillos. Lengua pálida, hinchada y húmeda. Pulso profundo y débil.", f: "Angélica, Ginseng, Maca, Suma.", a: "V23, DU4, R7, R3, V22" },
+            { o: "Riñón", s: "Insuficiencia de Yin de Riñón", m: "Mareos, acúfenos de tono agudo, boca seca por la noche, sudor nocturno, calor en palmas y plantas, dolor lumbar sordo. Lengua roja sin saburra. Pulso fino y rápido.", f: "Rehmannia, Sésamo negro, Alga Kombu.", a: "R3, R6, R10, R9" },
+            { o: "Riñón", s: "El Riñón no recibe el Qi", m: "Disnea severa al esfuerzo, respiración superficial, inhalación difícil y exhalación fácil, asma, sudoración espontánea. Lengua pálida. Pulso fino y profundo.", f: "Ginseng, Esquisandra.", a: "R25, R13, R3, V23, VC17, P7" },
+            { o: "Riñón", s: "Qi de Riñón no firme", m: "Incontinencia urinaria, goteo post-miccional, poluciones nocturnas sin sueños, eyaculación precoz, debilidad lumbar marcada. Lengua pálida. Pulso fino y profundo.", f: "Esquisandra, Grosellero negro.", a: "V23, R3, V52, VC4" },
+            // VEJIGA
+            { o: "Vejiga", s: "Calor-Humedad en la Vejiga", m: "Micción frecuente y urgente, escozor o ardor insoportable al orinar, orina turbia, oscura o con sangre. Lengua roja con saburra amarilla en la base. Pulso rápido y resbaladizo.", f: "Cola de caballo, Enebro, Yerba meona, Pichi.", a: "V28, VC3, B9, B6" },
+            { o: "Vejiga", s: "Frío-Humedad en la Vejiga", m: "Dificultad para orinar, sensación de pesadez en hipogastrio y uretra, orina pálida pero turbia. Lengua pálida con saburra blanca grasa en la base. Pulso profundo y lento.", f: "Canela, Clavo, Jengibre.", a: "V28, VC3, V22, B9" },
+            { o: "Vejiga", s: "Insuficiencia de Qi de Vejiga", m: "Goteo tras la micción, sensación de hinchazón abdominal sin dolor, dificultad para iniciar la micción. Lengua pálida. Pulso débil.", f: "Canela, Clavo.", a: "V23, V28, VC4, R7" },
+            // PULMÓN
+            { o: "Pulmón", s: "Deficiencia de Qi de Pulmón", m: "Tos débil y crónica, disnea al esfuerzo, voz baja, propensión a resfriados frecuentes, cansancio, sudoración diurna. Lengua pálida. Pulso vacío.", f: "Ginseng, Astrágalo.", a: "P9, V13, DU12, E36" },
+            { o: "Pulmón", s: "Deficiencia de Yin de Pulmón", m: "Tos seca o con muy poco esputo pegajoso, boca y garganta secas, calor vespertino, sudor nocturno, ronquera. Lengua roja y seca sin saburra. Pulso fino y rápido.", f: "Esquisandra, Morera.", a: "P7, R6, V13, P10" },
+            { o: "Pulmón", s: "Viento-Frío en Pulmón", m: "Tos súbita, aversión marcada al frío, fiebre leve, congestión nasal con moco acuoso claro, sin sed. Lengua con saburra blanca fina. Pulso superficial (Fu) y tenso.", f: "Jengibre, Efedra.", a: "P7, IG4, V12" },
+            { o: "Pulmón", s: "Viento-Calor en Pulmón", m: "Tos con moco amarillo, dolor de garganta, fiebre alta, aversión al viento, sed de frío. Lengua roja con saburra amarilla fina. Pulso superficial y rápido.", f: "Bardana, Lavanda, Saúco.", a: "P5, P11, IG11, TR5" },
+            { o: "Pulmón", s: "Flema-Calor en Pulmón", m: "Tos con esputo abundante, amarillo, espeso y pegajoso, respiración rápida y ruidosa, opresión torácica fuerte. Lengua roja saburra amarilla grasa. Pulso rápido y resbaladizo.", f: "Bardana, Mandarina.", a: "P1, P5, E40, V13" },
+            // INTESTINO GRUESO
+            { o: "Intestino Grueso", s: "Calor en el I.G.", m: "Estreñimiento con heces secas y duras, dolor abdominal que empeora con la presión, quemazón anal al evacuar. Lengua roja con saburra amarilla seca. Pulso rápido y lleno.", f: "Ruibarbo, Malva.", a: "IG11, E25, E37, IG4" },
+            { o: "Intestino Grueso", s: "Calor-Humedad en I.G.", m: "Diarrea explosiva con sangre y pus, dolor abdominal severo, tenesmo (ganas constantes), orina oscura. Lengua roja con saburra amarilla grasa. Pulso rápido y resbaladizo.", f: "Genciana, Cardo Mariano.", a: "E25, B9, VG14, IG11" },
+            { o: "Intestino Grueso", s: "Frío en el I.G.", m: "Diarrea acuosa y repentina, dolor abdominal que mejora con el calor, borborigmos constantes. Lengua pálida con saburra blanca. Pulso profundo y lento.", f: "Nuez Moscada, Canela.", a: "E25, E36, VC6" },
+            { o: "Intestino Grueso", s: "Sequedad de I.G.", m: "Heces secas y muy difíciles de evacuar, boca y garganta secas, piel seca (común en ancianos o postparto). Lengua seca. Pulso fino.", f: "Semillas de Lino, Sésamo Negro.", a: "E25, B6, R6" }
+        ];
+
+        let organFilter = "Todos";
+        const normalize = (t) => t ? t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "";
+
+        function createTags(str, dict, cls) {
+            return str.split(',').map(item => {
+                const name = item.trim();
+                const key = name.split(' ')[0].replace(/[.\(\)]/g, "");
+                const desc = dict[key] || "Información clínica detallada en el registro.";
+                return `<span class="interact-tag ${cls}">${name}<div class="tooltip font-sans font-normal">${desc}</div></span>`;
+            }).join(', ');
+        }
+
+        function renderTable() {
+            const body = document.getElementById('tableBody');
+            const search = normalize(document.getElementById('searchInput').value);
+            const terms = search.split(',').map(t => t.trim()).filter(t => t !== "");
+            const groups = { "Bazo": ["Bazo", "Estómago"], "Hígado": ["Hígado", "Vesícula Biliar"], "Corazón": ["Corazón", "Intestino Delgado", "Maestro de Corazón"], "Pulmón": ["Pulmón", "Intestino Grueso"], "Riñón": ["Riñón", "Vejiga"] };
+
+            const filtered = rawData.filter(i => {
+                const matchesOrgan = organFilter === "Todos" || groups[organFilter].includes(i.o);
+                const content = normalize(i.o + i.s + i.m + i.f + i.a);
+                return matchesOrgan && terms.every(t => content.includes(t));
+            });
+
+            body.innerHTML = filtered.map(i => `
+                <tr class="hover:bg-emerald-500/5 transition-all">
+                    <td class="p-5 text-[10px] font-black uppercase text-slate-500">${i.o}</td>
+                    <td class="p-5 font-bold text-emerald-300 text-sm">${i.s}</td>
+                    <td class="p-5 text-xs text-slate-300 leading-relaxed">${i.m}</td>
+                    <td class="p-5 text-xs font-medium">${createTags(i.f, plantDict, 'tag-plant')}</td>
+                    <td class="p-5 border-l border-slate-800 bg-blue-500/5 text-center text-[11px]">
+                        ${createTags(i.a, pointDict, 'tag-point')}
+                    </td>
+                </tr>
+            `).join('');
+            document.getElementById('resultCount').innerText = `${filtered.length} Síndromes`;
+        }
+
+        function setFilter(o) {
+            organFilter = o;
+            document.querySelectorAll('.organ-btn').forEach(b => {
+                b.classList.remove('active-filter');
+                if(b.innerText.includes(o)) b.classList.add('active-filter');
+            });
+            renderTable();
+        }
+
+        window.onload = () => setFilter('Todos');
+    </script>
+</body>
+</html>
